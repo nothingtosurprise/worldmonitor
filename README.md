@@ -389,7 +389,47 @@ This runs the frontend without the API layer. Panels that require server-side pr
 | **Linux x86_64**       | Full support            | Works with `vercel dev` for local development. Desktop .AppImage available for x86_64. WebKitGTK rendering uses DMA-BUF with fallback to SHM for GPU compatibility. Font stack includes DejaVu Sans Mono and Liberation Mono for consistent rendering across distros |
 | **macOS**              | Works with `vercel dev` | Full local development                                                                                                         |
 | **Raspberry Pi / ARM** | Partial                 | `vercel dev` edge runtime emulation may not work on ARM. Use Option 1 (deploy to Vercel) or Option 3 (static frontend) instead |
-| **Docker**             | Planned                 | See [Roadmap](#roadmap)                                                                                                        |
+| **Docker**             | Official image         | See [Docker image](#docker-image-official) ([#1260](https://github.com/koala73/worldmonitor/issues/1260))                    |
+
+### Docker image (official)
+
+An official Docker image is published to GitHub Container Registry on each [release](https://github.com/koala73/worldmonitor/releases) ([#1260](https://github.com/koala73/worldmonitor/issues/1260)):
+
+- **Image**: `ghcr.io/koala73/worldmonitor`
+- **Architectures**: `linux/amd64`, `linux/arm64`
+- **Tags**: `latest`, `vX.Y.Z` (e.g. `v2.6.0`), and `X.Y` (e.g. `2.6`)
+
+The image is **frontend-only**: it serves the Vite-built static app with nginx and proxies `/api/*` to an upstream API. No Node or edge functions run inside the container.
+
+**Build (from repo root):**
+
+```bash
+docker build -f docker/Dockerfile -t ghcr.io/koala73/worldmonitor:latest .
+```
+
+**Run (default API: `https://api.worldmonitor.app`):**
+
+```bash
+docker run -d --name worldmonitor -p 3000:80 ghcr.io/koala73/worldmonitor:latest
+```
+
+Then open [http://localhost:3000](http://localhost:3000).
+
+**Environment variables:**
+
+| Variable        | Default                        | Description                                      |
+| --------------- | ------------------------------ | ------------------------------------------------ |
+| `API_UPSTREAM`  | `https://api.worldmonitor.app` | Backend URL for `/api/*` proxy (set at runtime)  |
+
+The proxy forwards the upstream host (`Host: <API_UPSTREAM host>`) so the default API receives the correct Host. If your backend expects a different Host, configure it accordingly.
+
+Example with a custom API backend:
+
+```bash
+docker run -d -p 3000:80 -e API_UPSTREAM=http://my-api:3001 ghcr.io/koala73/worldmonitor:latest
+```
+
+Build-time options (optional, for custom builds): pass `VITE_VARIANT` and `VITE_WS_API_URL` via `--build-arg`. Other `VITE_*` vars the app uses (e.g. `VITE_PMTILES_URL`, `VITE_WS_RELAY_URL`) can be added the same way; see `.env.example` for the full list.
 
 ### Railway Relay (Optional)
 
@@ -488,7 +528,6 @@ Desktop release details, signing hooks, variant outputs, and clean-machine valid
 
 - [ ] Mobile-optimized views
 - [ ] Push notifications for critical alerts
-- [ ] Self-hosted Docker image
 
 See [full roadmap](./docs/DOCUMENTATION.md#roadmap).
 
@@ -507,40 +546,53 @@ If you find World Monitor useful:
 
 ## License
 
-This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)** — see [LICENSE](LICENSE) for the full text.
+This project is dual-licensed:
+
+- **AGPL-3.0** for non-commercial, personal, educational, and research use. See [LICENSE](LICENSE) for the full text.
+- **Commercial license** required for any commercial use. Contact the maintainer.
 
 ### What This Means
 
-**You are free to:**
+**You are free to (non-commercial):**
 
-- **Use** — run World Monitor for any purpose, including commercial use
+- **Use** — run World Monitor for personal, educational, or research purposes
 - **Study** — read, audit, and learn from the source code
-- **Modify** — adapt, extend, and build upon the code
-- **Distribute** — share copies with anyone
+- **Modify** — adapt, extend, and build upon the code for non-commercial use
+- **Distribute** — share copies with anyone under AGPL-3.0
 
 **Under these conditions:**
 
 - **Source code disclosure** — if you distribute or modify this software, you **must** make the complete source code available under the same AGPL-3.0 license
-- **Network use is distribution** — if you run a modified version as a network service (SaaS, web app, API), you **must** provide the source code to all users who interact with it over the network. This is the key difference from GPL-3.0 — you cannot run a modified version behind a server without sharing the source
+- **Network use is distribution** — if you run a modified version as a network service (SaaS, web app, API), you **must** provide the source code to all users who interact with it over the network
 - **Same license (copyleft)** — any derivative work must be released under AGPL-3.0. You cannot re-license under a proprietary or more permissive license
 - **Attribution** — you must retain all copyright notices, give appropriate credit to the original author, and clearly indicate any changes you made
-- **State changes** — modified files must carry prominent notices stating that you changed them, with the date of the change
-- **No additional restrictions** — you may not impose any further restrictions on the rights granted by this license (e.g., no DRM, no additional terms)
+- **No rebranding** — forking the code, changing the name/logo, and deploying as your own product is not permitted without a commercial license
+
+**Commercial use is prohibited without a commercial license.** This includes:
+
+- Rebranding, white-labeling, or renaming World Monitor and deploying it as your own product
+- Running World Monitor (or a fork) as a paid service or behind a paywall
+- Embedding World Monitor code, components, or data pipelines into a commercial product
+- Using World Monitor internally at a for-profit company for revenue or competitive advantage
+- Selling data collected or processed through World Monitor
 
 **In plain terms:**
 
 | Use Case | Allowed? | Condition |
 |----------|----------|-----------|
-| Personal / internal use | Yes | No conditions |
-| Self-hosted deployment | Yes | No conditions if unmodified |
-| Forking & modifying | Yes | Must share source under AGPL-3.0 |
-| Commercial use | Yes | Must share source under AGPL-3.0 |
-| Running as a SaaS/web service | Yes | Must share source under AGPL-3.0 |
-| Bundling into a proprietary product | No | AGPL-3.0 copyleft prevents this |
+| Personal / research use | Yes | No conditions |
+| Self-hosted deployment (non-commercial) | Yes | Must retain attribution |
+| Forking and modifying (non-commercial) | Yes | Must share source under AGPL-3.0, retain attribution |
+| Rebranding / renaming as your own product | No | Requires commercial license |
+| Commercial use of any kind | No | Requires commercial license |
+| Running as a SaaS / paid web service | No | Requires commercial license |
+| Bundling into a proprietary product | No | Requires commercial license |
+
+For commercial licensing, contact the maintainer at the [GitHub repository](https://github.com/koala73/worldmonitor).
 
 **No warranty** — the software is provided "as is" without warranty of any kind.
 
-Copyright (C) 2024-2026 Elie Habib. All rights reserved under AGPL-3.0.
+Copyright (C) 2024-2026 Elie Habib. All rights reserved.
 
 ---
 
