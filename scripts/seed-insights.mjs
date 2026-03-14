@@ -82,7 +82,7 @@ const LLM_PROVIDERS = [
     headers: (_key) => {
       const h = { 'Content-Type': 'application/json', 'User-Agent': CHROME_UA };
       const apiKey = process.env.OLLAMA_API_KEY;
-      if (apiKey) h['Authorization'] = `Bearer ${apiKey}`;
+      if (apiKey) h.Authorization = `Bearer ${apiKey}`;
       return h;
     },
     extraBody: { think: false },
@@ -158,7 +158,6 @@ Rules:
       return { text, model: json.model || model, provider: provider.name };
     } catch (err) {
       console.warn(`  ${provider.name} failed: ${err.message}`);
-      continue;
     }
   }
 
@@ -285,6 +284,7 @@ async function fetchInsights() {
       primaryTitle: story.primaryTitle,
       primarySource: story.primarySource,
       primaryLink: story.primaryLink,
+      pubDate: story.pubDate,
       sourceCount: story.sourceCount,
       importanceScore: story.importanceScore,
       velocity: { level: 'normal', sourcesPerHour: 0 },

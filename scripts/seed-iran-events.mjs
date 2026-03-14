@@ -145,6 +145,10 @@ const LOCATION_COORDS = {
   'empty quarter': { lat: 22.5200, lon: 54.0000 },
   'ovadia':        { lat: 31.4700, lon: 34.5300 },
   'shin bet':      { lat: 31.7683, lon: 35.2137 },
+  'kharg':         { lat: 29.2635, lon: 50.3273 },
+  'qom':           { lat: 34.6401, lon: 50.8764 },
+  'andisheh':      { lat: 35.7050, lon: 51.0000 },
+  'ankara':        { lat: 39.9334, lon: 32.8597 },
 };
 
 const CATEGORY_MAP = {
@@ -176,12 +180,12 @@ function categorizeSeverity(title) {
 function parseRelativeTime(timeStr) {
   const now = Date.now();
   const match = timeStr.match(/(\d+)\s+hours?\s+ago/);
-  if (match) return now - parseInt(match[1]) * 3600_000;
+  if (match) return now - parseInt(match[1], 10) * 3600_000;
   const minMatch = timeStr.match(/(\d+)\s+min/);
-  if (minMatch) return now - parseInt(minMatch[1]) * 60_000;
+  if (minMatch) return now - parseInt(minMatch[1], 10) * 60_000;
   if (/a day ago/.test(timeStr)) return now - 86400_000;
   const dayMatch = timeStr.match(/(\d+)\s+days?\s+ago/);
-  if (dayMatch) return now - parseInt(dayMatch[1]) * 86400_000;
+  if (dayMatch) return now - parseInt(dayMatch[1], 10) * 86400_000;
   return now;
 }
 

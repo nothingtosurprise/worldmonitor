@@ -24,22 +24,11 @@ const breaker = createCircuitBreaker<PredictionMarket[]>({ name: 'Polymarket', c
 
 const client = new PredictionServiceClient(getRpcBaseUrl(), { fetch: (...args) => globalThis.fetch(...args) });
 
-const GEOPOLITICAL_TAGS = [
-  'politics', 'geopolitics', 'elections', 'world',
-  'ukraine', 'china', 'middle-east', 'europe',
-  'economy', 'fed', 'inflation',
-];
+import predictionTags from '../../../scripts/data/prediction-tags.json';
 
-const TECH_TAGS = [
-  'ai', 'tech', 'crypto', 'science',
-  'elon-musk', 'business', 'economy',
-];
-
-const FINANCE_TAGS = [
-  'economy', 'fed', 'inflation', 'interest-rates', 'recession',
-  'trade', 'tariffs', 'debt-ceiling',
-  'crypto', 'business', 'markets',
-];
+const GEOPOLITICAL_TAGS = predictionTags.geopolitical;
+const TECH_TAGS = predictionTags.tech;
+const FINANCE_TAGS = predictionTags.finance;
 
 interface BootstrapPredictionData {
   geopolitical: PredictionMarket[];
@@ -79,7 +68,7 @@ function protoToMarket(m: { title: string; yesPrice: number; volume: number; url
 export async function fetchPredictions(opts?: { region?: string }): Promise<PredictionMarket[]> {
   const markets = await breaker.execute(async () => {
     const hydrated = getHydratedData('predictions') as BootstrapPredictionData | undefined;
-    if (hydrated && hydrated.fetchedAt && Date.now() - hydrated.fetchedAt < 20 * 60 * 1000) {
+    if (hydrated?.fetchedAt && Date.now() - hydrated.fetchedAt < 20 * 60 * 1000) {
       const variant = SITE_VARIANT === 'tech' ? hydrated.tech
         : SITE_VARIANT === 'finance' ? (hydrated.finance ?? hydrated.geopolitical)
         : hydrated.geopolitical;
