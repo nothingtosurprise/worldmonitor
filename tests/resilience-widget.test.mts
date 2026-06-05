@@ -15,11 +15,13 @@ import {
   getImputationClassIcon,
   getImputationClassLabel,
   getResilienceMethodologySummary,
+  formatScoredResilienceOverallLabel,
   getResilienceOverallDisplay,
   getResilienceDimensionLabel,
   getResilienceDomainLabel,
   getResilienceTrendArrow,
   getResilienceVisualLevel,
+  hasScoredResilienceOverall,
   getStalenessIcon,
   getStalenessLabel,
   shouldRenderResilienceBaselineStress,
@@ -102,7 +104,11 @@ test('getResilienceOverallDisplay treats negative and non-finite scores as insuf
   });
 });
 
-test('getResilienceOverallDisplay preserves API unknown zero as no score', () => {
+test('getResilienceOverallDisplay treats null, undefined, and API unknown zero as no score', () => {
+  assert.equal(hasScoredResilienceOverall(null), false);
+  assert.equal(hasScoredResilienceOverall(undefined), false);
+  assert.equal(hasScoredResilienceOverall({ overallScore: null as unknown as number, level: 'low' }), false);
+  assert.equal(hasScoredResilienceOverall({ overallScore: undefined as unknown as number, level: 'low' }), false);
   assert.equal(getResilienceVisualLevel(0), 'very_low');
   assert.deepEqual(getResilienceOverallDisplay({ overallScore: 0, level: 'unknown' }), {
     hasScore: false,
@@ -115,10 +121,25 @@ test('getResilienceOverallDisplay preserves API unknown zero as no score', () =>
 });
 
 test('getResilienceOverallDisplay keeps explicit zero scores when API level is real', () => {
+  assert.equal(hasScoredResilienceOverall({ overallScore: 0, level: 'low' }), true);
   assert.deepEqual(getResilienceOverallDisplay({ overallScore: 0, level: 'low' }), {
     hasScore: true,
     scoreForBar: 0,
     scoreLabel: '0',
+    visualLevel: 'very_low',
+    visualLevelLabel: 'Visual band: VERY LOW',
+    serverLevelLabel: 'API level: low',
+  });
+});
+
+test('getResilienceOverallDisplay distinguishes positive sub-1 scores from explicit zero', () => {
+  assert.equal(hasScoredResilienceOverall({ overallScore: 0.4, level: 'low' }), true);
+  assert.equal(formatScoredResilienceOverallLabel(0), '0');
+  assert.equal(formatScoredResilienceOverallLabel(0.4), '<1');
+  assert.deepEqual(getResilienceOverallDisplay({ overallScore: 0.4, level: 'low' }), {
+    hasScore: true,
+    scoreForBar: 0.4,
+    scoreLabel: '<1',
     visualLevel: 'very_low',
     visualLevelLabel: 'Visual band: VERY LOW',
     serverLevelLabel: 'API level: low',
