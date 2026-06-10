@@ -119,6 +119,15 @@ function clearSettledDirtyKeys(postedBlob: Record<string, string>): void {
 let _retryTimer: ReturnType<typeof setTimeout> | null = null;
 let _authGeneration = 0;
 
+// Count of uploadNow calls currently in their async phase. `_debounceTimer`
+// alone can't tell "no upload of any kind in progress" — the debounce
+// callback nulls the timer synchronously BEFORE uploadNow starts awaiting,
+// so a late flush response checking only the timer would claim 'synced'
+// mid-upload (and observers would see a synced → conflict/error regression
+// if that upload then fails). onSignIn doesn't need this: it bumps
+// _authGeneration on entry, which already makes stale flush handlers bail.
+let _uploadsInFlight = 0;
+
 function clearRetryTimer(): void {
   if (_retryTimer !== null) {
     clearTimeout(_retryTimer);
@@ -558,14 +567,15 @@ async function uploadNow(variant: string): Promise<void> {
   // called by the debounced upload path), so we want to inherit the current
   // generation, not start a new one.
   const myGeneration = _authGeneration;
-
-  const token = await getClerkToken();
-  if (!token) return;
-  _cachedToken = token;
-
-  setState('syncing');
+  _uploadsInFlight += 1;
 
   try {
+    const token = await getClerkToken();
+    if (!token) return;
+    _cachedToken = token;
+
+    setState('syncing');
+
     const postedBlob = migrateLocalBlobIfNeeded();
     const result = await postCloudPrefs(token, variant, postedBlob, getSyncVersion());
 
@@ -605,6 +615,8 @@ async function uploadNow(variant: string): Promise<void> {
     }
     console.warn('[cloud-prefs] uploadNow failed:', err);
     setState(!navigator.onLine || (err instanceof TypeError && err.message.includes('fetch')) ? 'offline' : 'error');
+  } finally {
+    _uploadsInFlight -= 1;
   }
 }
 
@@ -693,6 +705,7 @@ export function install(variant: string): void {
     // CURRENT_PREFS_SCHEMA_VERSION onto unmigrated local data, even on
     // best-effort unload flush.
     const blob = migrateLocalBlobIfNeeded();
+    const myGeneration = _authGeneration;
     const payload = JSON.stringify({ variant: _currentVariant, data: blob, expectedSyncVersion: getSyncVersion(), schemaVersion: CURRENT_PREFS_SCHEMA_VERSION });
     fetch('/api/user-prefs', {
       method: 'POST',
@@ -702,6 +715,36 @@ export function install(variant: string): void {
         Authorization: `Bearer ${_cachedToken}`,
       },
       body: payload,
+    }).then(async (res) => {
+      // The flush's most common trigger is NOT a real unload — it's
+      // visibilitychange→hidden on a tab switch, after which the tab stays
+      // alive. A successful flush advances the server row's syncVersion, so
+      // skipping the response here strands local KEY_SYNC_VERSION one
+      // version behind and GUARANTEES a 409 on the next pref save. Adopt
+      // the new version when the response is observable (true unloads never
+      // get here; the next boot's onSignIn GET heals those instead).
+      //
+      // Non-2xx (409/5xx): change nothing — keeping the stale version and
+      // the dirty keys is what routes the next upload through the
+      // conflict-merge path, which is the correct recovery.
+      if (!res.ok) return;
+      const body = (await res.json().catch(() => null)) as { syncVersion?: number } | null;
+      if (typeof body?.syncVersion !== 'number') return;
+      // Auth generation: a sign-out or user switch while the flush was in
+      // flight already cleared/replaced sync state — don't resurrect a
+      // version marker for the previous session.
+      if (_authGeneration !== myGeneration) return;
+      // Monotonic: a slow flush response must not regress the version past
+      // a newer upload (or conflict-merge) that completed meanwhile.
+      if (body.syncVersion <= getSyncVersion()) return;
+      setSyncVersion(body.syncVersion);
+      clearSettledDirtyKeys(blob);
+      Storage.prototype.setItem.call(localStorage, KEY_LAST_SYNC_AT, String(Date.now()));
+      // Only claim 'synced' when no newer edit re-armed the debounce AND no
+      // uploadNow is mid-flight (the debounce callback nulls the timer
+      // synchronously before uploadNow's async work, so the timer alone
+      // can't distinguish "idle" from "upload in progress").
+      if (_debounceTimer === null && _uploadsInFlight === 0) setState('synced');
     }).catch(() => { /* best-effort on unload */ });
   };
 
