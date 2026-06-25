@@ -5240,7 +5240,7 @@ export class DeckGLMap {
     setTrustedHtml(toggles, trustedHtml(`
       <div class="toggle-header">
         <span>${t('components.deckgl.layersTitle')}</span>
-        <button class="layer-help-btn" title="${t('components.deckgl.layerGuide')}" aria-label="${t('components.deckgl.layerGuide')}">?</button>
+        <button class="layer-help-btn" aria-label="${t('components.deckgl.layerGuide')}">?</button>
         <button class="toggle-collapse">&#9660;</button>
       </div>
       <input type="text" class="layer-search" placeholder="${t('components.deckgl.layerSearch')}" autocomplete="off" spellcheck="false" />
@@ -5255,7 +5255,7 @@ export class DeckGLMap {
               <span class="toggle-icon">${icon}</span>
               <span class="toggle-label">${label}${isLocked ? ' \uD83D\uDD12' : ''}${isEnhanced ? ' <span class="layer-pro-badge">PRO</span>' : ''}</span>
             </label>
-            <button type="button" class="layer-explain-btn${hasExplanation ? ' has-layer-explanation' : ''}" data-layer="${key}" aria-label="${explainLabel}" title="${explainLabel}">i</button>
+            <button type="button" class="layer-explain-btn${hasExplanation ? ' has-layer-explanation' : ''}" data-layer="${key}" aria-label="${explainLabel}">i</button>
           </div>`;
         }).join('')}
       </div>
